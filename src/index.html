@@ -1,174 +1,283 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-    <title>Getting Started</title>
-    <script  src="./js/camera.js"></script>
-  </head>
-  <body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
+      id="viewport"
+      name="viewport"
+    />
+    <title>threejs-Voxel_RabbitB</title>
+    
+    <style>
+        body{
+            font-family: Monospace;
+            /* background: #f0f0f0; */
+            margin: 0px;
+            overflow: hidden;
+        }
 
-    <div id="three" style="position: relative; z-index:100;">
-      <div style="display: flex; flex-direction: column; align-items: flex-end;  position: fixed; top: 10px; right: 2vw;  color: red;">
-          <p style="border: 1px solid black; padding: 5px;">对象：<sapn id="current"></sapn></p>
-        </div>
+        #score,#seconds {
+            width: 4rem;
+            font-size: medium;
+            border-radius: 0.2rem;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: none;
+            padding-left: 0.5rem;
+            margin-top: 0.3rem;
+        }
+    </style>
+      <!-- <script  type="text/javascript"  src="./js/jquery-2.0.2.min.js"></script> -->
+      <script src="https://lib.sinaapp.com/js/jquery/2.0.2/jquery-2.0.2.min.js"></script>
+      <script  src="./js/camera.js"></script>
+</head>
+<body style="margin: 0; overflow: hidden">
+   <div id="three" style="position: relative; z-index:100;">
+    <div style="display: flex; flex-direction: column; align-items: flex-end;  position: fixed; top: 10px; right: 2vw;  color: red;">
+      <!-- <p style="border: 1px solid black; padding: 5px;">對象：<span id="name"></span></p> -->
+      <p id="seconds" style="border: 1px solid black; padding: 5px;">秒數：30</p>
+        <button id="startButton" style="padding: 5px;width: 78px; border-radius: 10%;">背景音樂</button>
       </div>
     </div>
-    <!-- 禁止縮放 -->  
-    <script>
-      document.addEventListener(
-        "touchmove",
-        function (event) {
-          if (event.scale !== 1) {
-            event.preventDefault();
-          }
-        },
-        { passive: false }
-      );
-    </script>
+  </div>
 
-    <!-- 143版本 124版本 -->
-    <script  type="importmap">
-      {
-        "imports": {
-          "three": "./build/three.module.js"
+  <video style="position: absolute; left: 0; top: 0; width: 100%;  height: 100%; z-index:-100; "/>
+  
+  <audio id="backgroundMusic" loop  preload="auto" style="border: 1px solid black; padding: 5px; display: none" ><source src="14028.mp3" type="audio/mp3"> </audio>
+  <audio id="rabbitMusic" preload="auto" style="display: none">  <source src="14289.mp3" type="audio/mp3"> </audio>
+
+<!-- 禁止縮放 -->  
+<script>
+    document.addEventListener(
+      "touchmove",
+      function (event) {
+        if (event.scale !== 1) {
+          event.preventDefault();
         }
+      },
+      { passive: false }
+    );
+</script>
+
+<!-- 143版本 124版本 -->
+<script  type="importmap">
+    {
+      "imports": {
+        "three": "./build/three.module.js"
       }
-    </script>
+    }
+</script>
 
-    <script type="module" >
-      import * as THREE from "./build/three.module.js";
-      import { OrbitControls } from "./js/controls/OrbitControls.js";
-      import { DeviceOrientationControls } from "./js/controls/DeviceOrientationControls.js";
-      let camera, scene, renderer;
-      let raycaster,pointer,controls;
-      const mouse = new THREE.Vector2();
+<script  type="module">
+    import * as THREE from "./build/three.module.js";
+    import Stats from './js/stats.module.js';
+    import { DeviceOrientationControls } from "./js/controls/DeviceOrientationControls.js";
+    import { OrbitControls } from "./js/controls/OrbitControls.js";
+    import { GLTFLoader } from './js/loaders/GLTFLoader.js';
 
-      let rollOverMesh, rollOverMaterial;
-			let cubeGeo, cubeMaterial;
-      const distance=10;//移動距離
-      const innerNum=120//距離圓形多少停下
-      const maxNum=480
+    var camera, scene, renderer,raycaster,container,stats;
+    var controls;
+    var seconds;
+    
+    let num = 0;
+    const mouse = new THREE.Vector2();
+    // let mixer1,mixer2,mixer3,mixer4,mixer5;
 
-      // 初始坐標
-      const positions=[
-          {x:-maxNum,y:0,z:0},
-          {x:maxNum,y:0,z:0},
-          {x:0,y:0,z:maxNum},
-          {x:0,y:0,z:-maxNum},
-      ]
-      // 多個對象
-      const rollOverMeshs=[]
-      const pageTimer = {};  // 计时器数组
+    // clock 和動畫有關
+    const clock = new THREE.Clock();
 
-      main();
-      animate();
+    const objectNum=5;//對象數量
+    const distance=1000;//移動距離
+    const innerNum=15000//距離圓形多少停下 最小邊界
+    const maxNum=140000
 
-      //主函数
-      function main(){
+    // 多個對象
+    let rollOverMeshs=[]//裝多個對象
+    let pageTimer = {};  // 计时器数组
+    let mixers={}
+    let startPostions={} //舊坐標
+
+    main();
+    animate();
+  
+    // 倒计时计分
+    function timers(){
+        seconds=30
+        window.timer =  setInterval(() => {
+            seconds -= 1;
+            $("#seconds").text(`秒數：${seconds||0}`)
+            if (seconds <= 0) {
+                seconds=30
+                $("#seconds").text(`秒數：${seconds}`)
+                // 清空定时器
+                clearInterval( window.timer)
+                rollOverMeshs?.forEach(function(object) {
+                    scene.remove(object)
+                });
+
+                // 清除對象的定時器
+                for(let i=1;i<=objectNum;i++){
+                  if (pageTimer[`cube${i}`]) clearInterval(pageTimer[`cube${i}`])
+                }
+           
+                rollOverMeshs=[]
+                mixers={}
+                startPostions={}
+                pageTimer={}
+               
+                cube();//重新产生对象（兔子）
+                timers();//重新算分
+            }
+        }, 1000);
+     }
+
+    //主函数
+    function main(){
         //添加一个div元素
         const container = document.getElementById("three");
-
-        camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
-				// camera.position.set( 100, 800, 100 );
-        camera.position.set( 0, 800, 0 );
-				camera.lookAt( 0, 0, 0 );
-
+        stats = new Stats();
         scene = new THREE.Scene();//创建一个新场景
-				scene.background = new THREE.Color( 0xf0f0f0 );
+
+        //添加一个透视相机   多少度视角，相机的宽高比，从距离相机多远的位置开始渲染，距离相机多远的位置截止渲染
+        camera = new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight, 1, 200000);
+        camera.position.set(0, 50000, 0);//设置相机位置
         
-        // lights
-        const ambientLight = new THREE.AmbientLight( 0x606060 );
-        scene.add( ambientLight );
-
-				const directionalLight = new THREE.DirectionalLight( 0xffffff );
-				directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
-				scene.add( directionalLight );
-
-        renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-        container.appendChild(renderer.domElement);
 
         raycaster = new THREE.Raycaster();//3d世界鼠標選中物體獲取器
-        pointer = new THREE.Vector2();//二维向量
 
+        //antialias:true增加抗锯齿效果 alpha: true 允许透明
+        renderer = new THREE.WebGLRenderer({antialias:true,alpha: true});
+        renderer.setClearColor( 0x000000, 0 );//透明颜色
+        renderer.setSize(window.innerWidth, window.innerHeight);//设置窗口尺寸
+        //将renderer关联到container，这个过程类似于获取canvas元素
+        container.appendChild(renderer.domElement);
+      
+        //给场景添加光源(会影响兔兔颜色)
+        var light= new THREE.PointLight(0xffffff);
+        light.position.set(0,50000,0);
+        scene.add(light);  
+
+        // 自然光(会影响兔兔颜色)
+        var ambientLight = new THREE.AmbientLight( 0x666666 );
+        scene.add( ambientLight );
+
+        //平行光源
+        // var directionalLight = new THREE.DirectionalLight( 0xffffff );
+        // directionalLight.position.set( 0, 0, 0).normalize();
+        // scene.add( directionalLight );
         renderer.domElement.addEventListener('click', onClick, false);
-        // renderer.domElement.addEventListener( 'pointermove', onPointerMove );
 
         // 當視窗大小改變時
         window.addEventListener('resize', onWindowResize);
 
-       // 陀螺仪控制器
+        // 陀螺仪控制器
         controls = new DeviceOrientationControls(camera);
         controls.connect();
-
+       
         // 轨迹控制器
         // controls = new OrbitControls(camera, renderer.domElement);
         // controls.target.set(0, 0, 0);
 
-        // grid
-				const gridHelper = new THREE.GridHelper( 1000, 25 );
-				scene.add( gridHelper );
-        
         plane();
-        cube();
-        moveEvent();
+        cube(rollOverMeshs);
+        timers();//30秒重新開始
+        backgroundMusic();//音樂
     }
-    
-      //创建一个平面
-      function plane(){
-        // 创建一个圆形平面，半径20，圆周方向细分數30
-        var plane = new THREE.CircleGeometry(100,25)
-        var material = new THREE.MeshPhongMaterial({
-              color: 0x999999,// 0x999999
-              // 矩形平面网格模型默认单面显示，可以设置side属性值为THREE.DoubleSide双面显示
-              side: THREE.DoubleSide,
-              // visible: true
-          });
-          var mesh = new THREE.Mesh(plane, material);
-          mesh.name=`plane`
-          mesh.rotation.x = -0.5 * Math.PI;//将平面绕X轴逆时针旋转90度
-          scene.add(mesh);//将平面添加到场景中
+
+    //创建一个平面
+    function plane(){
+      // 创建一个圆形平面，半径20，圆周方向细分數30
+      var plane = new THREE.CircleGeometry(10000,25)
+      var material = new THREE.MeshPhongMaterial({
+            color:0x000000,//白色 0x999999黑色 000000
+            // 矩形平面网格模型默认单面显示，可以设置side属性值为THREE.DoubleSide双面显示
+            side: THREE.DoubleSide,
+            // visible: true
+        });
+        var mesh = new THREE.Mesh(plane, material);
+        mesh.name=`plane`
+        mesh.rotation.x = -0.5 * Math.PI;//将平面绕X轴逆时针旋转90度
+        scene.add(mesh);//将平面添加到场景中
+  
+        // 地板線條 
+        const gridHelper = new THREE.GridHelper( 50000, 25 );
+        scene.add( gridHelper );
+    }
+
+    function random(state,value,min) {
+        return state==0?Math.floor(Math.random() * value)+min:-(Math.floor(Math.random() * value)+min);
+    }
+
+    //  创建一个模型
+    function cube(){
       
-      }
+        let currentNum=0
+         // 加载模型
+        const loader = new GLTFLoader();
+        for(var i=0;i<objectNum;i++){
+            const position=[]
+            // x z轴值
+            for(let k=0;k<2;k++){
+              const positionIndex= Math.floor(Math.random() * 2)//四個坐標系
+              position.push(random(positionIndex,100000,innerNum))//第二位參數
+            }
+            loader.load('Voxel_RabbitB.glb', function (gltf) {
+                   currentNum++      
+                    // 设置模型缩放比例
+                    gltf.scene.scale.set(80000,80000,80000);
+                    gltf.scene.position.set(position[0],0, position[1])
+                    // 模型原始坐標
+                    startPostions[`cube${currentNum}`]={
+                      x:position[0],
+                      z:position[1]
+                    }
+                     //   動畫類型  Walk、Run、Eat、Jump、Idle、Rest  
+                      const mixer = new THREE.AnimationMixer(gltf.scene);//所有動畫
+                      // let action = mixer.clipAction(gltf.animations[0]);
+                      let action = mixer.clipAction(gltf.animations[0]);
+                      // if(currentNum==1){
+                      //     action = mixer.clipAction(gltf.animations[0]);
+                      //     mixer1=mixer
+                      // }else if(currentNum==2){
+                      //     action = mixer.clipAction(gltf.animations[0]);
+                      //     mixer2=mixer
+                      // }else if(currentNum==3){
+                      //     action = mixer.clipAction(gltf.animations[0]);
+                      //     mixer3=mixer
+                      // }else if(currentNum==4){
+                      //     action = mixer.clipAction(gltf.animations[0]);
+                      //     mixer4=mixer
+                      // }else if(currentNum==5){
+                      //     action = mixer.clipAction(gltf.animations[0]);
+                      //     mixer5=mixer
+                      // }
 
-      // 方塊或者模型
-      function cube(){
-        // 多個方塊
-        for(let i=0;i<4;i++){
-          const rollOverGeo = new THREE.BoxGeometry( 50, 50, 50 );
-          rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
-          rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
-          rollOverMesh.position.set(positions[i].x,positions[i].y,positions[i].z)
-          rollOverMesh.name=`cube${i}`
-          rollOverMeshs.push(rollOverMesh);
-          scene.add( rollOverMesh );
+                      mixers[`mixer${currentNum}`]=mixer
+                      action.play();
+                      gltf.scene.traverse( function ( child ) {
+                        //模型看向中心
+                        child.lookAt(camera.position)
+                        child.name=`cube${currentNum}`// 根据名字进行删除
+                        if(child.type === "Group") {
+                            rollOverMeshs.push(child);
+                            moveAutoEvent(child);
+                        }
+                    });
+                scene.add(gltf.scene);
+                render();
+            }
+            );
         }
-      }
+    }
 
-      // 鼠標經過事件
-      function onPointerMove(event) {
-          event.preventDefault();
-          pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-          pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-          raycaster.setFromCamera( pointer, camera );
-          var intersects = raycaster.intersectObjects( scene.children, true );
-          if ( intersects.length > 0 ) {
-            const object = intersects[0].object;
-            render();
-          }
-      }
-        
-      // 改變視窗大小需要重新調整 camera 和 renderer
-      function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            render();
-      }
+    //渲染
+    function render(){
+        renderer.render(scene, camera);
+    }
 
-        // 點擊事件
+    // 點擊事件
     function onClick( event ) {
         event.preventDefault();
         mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
@@ -177,136 +286,235 @@
         // 获取鼠标点击的3D模型
         raycaster.setFromCamera( mouse, camera );
         var intersects = raycaster.intersectObjects( scene.children, true );
+    
         if ( intersects.length > 0 ) {
              // 點擊到3D內容
             const object = intersects[0].object;
-            const current=document.getElementById('current')
-            current.innerText=object.name
+            // const name =document.getElementById('name')
+            // name.innerText=object.name
             moveClick(object);
         }
     }
 
-    function render() {
-       renderer.render( scene, camera );
+    // 持续重繪
+    function animate() {
+           requestAnimationFrame(animate);
+           renderer.render(scene, camera);
+           // 會影響看向世界坐標中心
+           let delta = clock.getDelta();
+               delta *= 0.5;
+           for(let i=1;i<=objectNum;i++){
+              if (mixers[`mixer${i}`]) mixers[`mixer${i}`].update(delta);
+           }
+
+            // if(mixer1) mixer1.update(delta);
+            // if(mixer2) mixer2.update(delta);
+            // if(mixer3) mixer3.update(delta);
+            // if(mixer4) mixer4.update(delta);
+            // if(mixer5) mixer5.update(delta);
+
+            controls.update();
+            stats.update();
     }
 
-    // 自動移動事件
-    function moveEvent(){
-      for(let i=0;i<rollOverMeshs.length;i++){
-        pageTimer[rollOverMeshs[i].name]=setInterval(()=>{
-          // x處理
-          if(rollOverMeshs[i].position.x>innerNum){
-            rollOverMeshs[i].position.x= rollOverMeshs[i].position.x-distance
-            if(rollOverMeshs[i].x<innerNum)clearInterval(pageTimer[rollOverMeshs[i].name])
-          }else if(rollOverMeshs[i].position.x<-innerNum){
-            rollOverMeshs[i].position.x= rollOverMeshs[i].position.x+distance
-            if(rollOverMeshs[i].position.x>-innerNum)clearInterval(pageTimer[rollOverMeshs[i].name])
+    //  釋放空間
+     function destory(){
+        scene.clear();
+        renderer.dispose();
+        renderer.content = null;
+        controls.dispose(); 
+     }
+
+   // 改變視窗大小需要重新調整 camera 和 renderer
+   function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // 加載背景音樂(chrome允許點擊播放，自動播放需要滿足一些條件及設置)
+    function backgroundMusic(){
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', function () {
+            const listener = new THREE.AudioListener();
+            camera.add(listener);
+            const audioElement = document.getElementById('backgroundMusic');
+            audioElement.play();
+        });
+    }
+
+    // 單個自動移動事件
+    function moveAutoEvent(object){
+      // object.lookAt(camera.position)
+      const objectCurrent=startPostions[object.name]
+      let xz,x,z
+      // if(pageTimer[object.name]){clearInterval(pageTimer[object.name])}
+      // 自動移動
+      pageTimer[object.name]=setInterval(()=>{
+         xz=calcHypotenuse(object.position.x,  object.position.z) //第三邊
+         x=Math.abs(object.position.x)//用於處理偏移量
+         z=Math.abs(object.position.z)//用於處理偏移量
+        // x處理
+        if(object.position.x>0 && object.position.z>0&&xz>=innerNum){ // x  z 
+          // console.log(111,object.name,object.position.x, object.position.z)
+          if(x==z){//45度角傾斜
+            object.position.x-= distance
+            object.position.z-= distance
+          }else if(x>z){//0-45度角
+            object.position.x-= distance
+            object.position.z-= distance*( Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//45-90度角
+            object.position.x-= distance*( Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            object.position.z-= distance
           }
-          // z處理
-          if(rollOverMeshs[i].position.z>innerNum){
-            rollOverMeshs[i].position.z= rollOverMeshs[i].position.z-distance
-            if(rollOverMeshs[i].z<innerNum)clearInterval(pageTimer[rollOverMeshs[i].name])
-          }else if(rollOverMeshs[i].position.z<-innerNum){
-            rollOverMeshs[i].position.z= rollOverMeshs[i].position.z+distance
-            if(rollOverMeshs[i].position.z>-innerNum)clearInterval(pageTimer[rollOverMeshs[i].name])
+        }else if(object.position.x>0 && object.position.z<0&&xz>=innerNum) {  // x -z 
+          // console.log(222, object.name,object.position.x, object.position.z)
+          if(x==z){//315度角傾斜
+            object.position.x-= distance
+            object.position.z+= distance
+          }else if(x>z){//315-360
+            object.position.x-= distance
+            object.position.z+= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//270-315度角
+            object.position.x-= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            object.position.z+= distance
           }
-          render();
-        },mathRandow())
-      }
+        }else if(object.position.x<0 && object.position.z>0 &&xz>=innerNum){  // -x  z 
+          // console.log(333,object.name,object.position.x, object.position.z)
+          if(x==z){//135
+            object.position.x+= distance
+            object.position.z-= distance
+          }else if(x>z){//135-180
+            object.position.x+=  distance
+            object.position.z-= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//90-135
+            object.position.x+= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            object.position.z-= distance
+          }
+        }else if(object.position.x< 0 && object.position.z<0 && xz>=innerNum ){ // -x -z 
+          // console.log(444,object.name,object.position.x, object.position.z)
+          if(x==z){//225
+            object.position.x+= distance
+            object.position.z+= distance
+          }else if(x>z){//180-225
+            object.position.x+= distance
+            object.position.z+=distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//225-270
+            object.position.x+= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            object.position.z+= distance
+          }
+        }
+        if(xz <= innerNum){
+            clearInterval(pageTimer[object.name])
+        }
+        render();
+      },mathRandow())
     }
      
     // 點擊移動事件
     function moveClick(object){
       const objectMesh=rollOverMeshs.find(mesh=>mesh.name==object.name)
-      // 清除自動移動的定時
-      clearInterval(pageTimer[objectMesh.name])
+      const objectCurrent=startPostions[object.name]
+      const objectXZ = calcHypotenuse(objectCurrent.x,  objectCurrent.z)//原始邊長
+      // 清除原有定時器
+      if(pageTimer[objectMesh.name]){
+        const audioElement = document.getElementById('rabbitMusic');
+        audioElement.play();
+        clearInterval(pageTimer[objectMesh.name])
+      }
       // 快速回退
       pageTimer[objectMesh.name]=setInterval(()=>{
-          // x處理
-          if(objectMesh.position.x>=innerNum){
-            objectMesh.position.x=distance+objectMesh.position.x
-            if(objectMesh.position.x>=maxNum){
-              clearInterval(pageTimer[objectMesh.name])
-              clickAutoMove(objectMesh)
-            }
-          }else if(objectMesh.position.x<=-innerNum){
-            objectMesh.position.x-=distance
-            if(objectMesh.position.x<=-maxNum){
-              clearInterval(pageTimer[objectMesh.name])
-              clickAutoMove(objectMesh)
-            }
+      const  xz=calcHypotenuse(objectMesh.position.x,  objectMesh.position.z) //第三邊
+      const  x=Math.abs(objectMesh.position.x)//用於處理偏移量
+      const  z=Math.abs(objectMesh.position.z)//用於處理偏移量
+        // x處理
+        if(objectMesh.position.x>0 && objectMesh.position.z>0){ // x  z 
+          // console.log(111,objectMesh.name,objectMesh.position.x, objectMesh.position.z)
+          if(x==z){//45度角傾斜 
+            // console.log("AA")
+            objectMesh.position.x+= distance
+            objectMesh.position.z+= distance
+          }else if(x>z){//0-45度角 正常
+            // console.log("BB")
+            objectMesh.position.x+= distance
+            objectMesh.position.z+= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//45-90度角
+            // console.log("CC")
+            objectMesh.position.x+= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            objectMesh.position.z+= distance
           }
-
-          // z處理
-          if(objectMesh.position.z>=innerNum){
-            objectMesh.position.z+=distance
-            if(objectMesh.position.z>=maxNum){
-              clearInterval(pageTimer[objectMesh.name])
-              clickAutoMove(objectMesh)
-            } 
-          }else if(objectMesh.position.z<=-innerNum){
-            objectMesh.position.z-=distance
-            if(objectMesh.position.z<=-maxNum){
-              clearInterval(pageTimer[objectMesh.name])
-              clickAutoMove(objectMesh)
-            } 
+        }else if(objectMesh.position.x>0 && objectMesh.position.z<0) {  // x -z 
+          // console.log(222, objectMesh.name,objectMesh.position.x, objectMesh.position.z)
+          if(x==z){//315度角傾斜 
+            // console.log("AA")
+            objectMesh.position.x+= distance
+            objectMesh.position.z-= distance
+          }else if(x>z){//315-360
+            // console.log("BB")
+            objectMesh.position.x+= distance
+            objectMesh.position.z-= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//270-315度角 正常
+            // console.log("CC") 
+            objectMesh.position.x+= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            objectMesh.position.z-= distance
           }
+        }else if(objectMesh.position.x<0 && objectMesh.position.z>0 ){  // -x  z 
+          // console.log(333,objectMesh.name,objectMesh.position.x, objectMesh.position.z)
+          if(x==z){//135
+            // console.log("AA")
+            objectMesh.position.x-= distance
+            objectMesh.position.z+= distance
+          }else if(x>z){//135-180 需調整
+            // console.log("BB")
+            objectMesh.position.x-= distance
+            objectMesh.position.z+= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//90-135 正常
+            // console.log("CC")
+            objectMesh.position.x-= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            objectMesh.position.z+= distance
+          }
+        }else if(objectMesh.position.x< 0 && objectMesh.position.z<0  ){ // -x -z 
+          // console.log(444,objectMesh.name,objectMesh.position.x, objectMesh.position.z)
+          if(x==z){//225
+            // console.log("AA")
+            objectMesh.position.x-= distance
+            objectMesh.position.z-= distance
+          }else if(x>z){//180-225
+            // console.log("BB")
+            objectMesh.position.x-= distance
+            objectMesh.position.z-= distance*(Math.abs(objectCurrent.z)/Math.abs(objectCurrent.x))
+          }else if(z>x){//225-270  正常
+            // console.log("CC")
+            objectMesh.position.x-= distance*(Math.abs(objectCurrent.x)/Math.abs(objectCurrent.z))
+            objectMesh.position.z-= distance
+          }
+        }
+       
+        //  console.log('distanceZ:',distance*(Math.abs( objectMesh.position.x)/Math.abs(objectMesh.position.z)), 'distanceX',distance*(Math.abs( objectMesh.position.z)/Math.abs(objectMesh.position.x)))
+         if(xz>=objectXZ){//回退的邊長大於初始邊長
+          // console.log('xz:',xz,'objectXZ:',objectXZ,'absX:',x,'absZ:',z,'xx:',objectCurrent.x,'zz:',objectCurrent.z)
+          //清除定時器
+          if(pageTimer[objectMesh.name]){clearInterval(pageTimer[objectMesh.name])}
+          //重置坐標
+          objectMesh.position.x= objectCurrent.x
+          objectMesh.position.z= objectCurrent.z
+          // 重新從邊界跑向中心
+          moveAutoEvent(objectMesh)
+         }
           render();
-      },10)
-
+      },1)
     }
 
-    // 單個边界判断
-    function clickAutoMove(objectMesh){
-          // x處理
-          if(objectMesh.position.x>=maxNum){
-            oneAutoMove(objectMesh,mathRandow())
-          }else if(objectMesh.position.x<=-maxNum){
-            oneAutoMove(objectMesh,mathRandow())
-          }
-          // z處理
-          if(objectMesh.position.z >= maxNum){
-            oneAutoMove(objectMesh,mathRandow())
-          }else if(objectMesh.position.z <= -maxNum){
-            oneAutoMove(objectMesh,mathRandow())
-          }
-    }
-
-    // 單個移動事件
-    function oneAutoMove(objectMesh,randomTimer){
-      pageTimer[objectMesh.name]=setInterval(()=>{
-        // console.log(objectMesh.position.x,objectMesh.position.z,pageTimer[objectMesh.name])
-          // x處理
-          if(objectMesh.position.x>=innerNum){
-            objectMesh.position.x= objectMesh.position.x-distance
-            if(objectMesh.position.x<=innerNum)clearInterval(pageTimer[objectMesh.name])
-          }else if(objectMesh.position.x<=-innerNum){
-            objectMesh.position.x= objectMesh.position.x+distance
-            if(objectMesh.position.x>=-innerNum)clearInterval(pageTimer[objectMesh.name])
-          }
-          
-          // z處理
-          if(objectMesh.position.z>=innerNum){
-            objectMesh.position.z= objectMesh.position.z-distance
-            if(objectMesh.position.z<=innerNum)clearInterval(pageTimer[objectMesh.name])
-          }else if(objectMesh.position.z<=-innerNum){
-            objectMesh.position.z= objectMesh.position.z+distance
-            if(objectMesh.position.z>=-innerNum)clearInterval(pageTimer[objectMesh.name])
-          }
-          render();
-        }, randomTimer)
-    }
-
+    // 隨機速度
     function mathRandow(){
-      return  Math.floor(Math.random()*100+20)
+      return  Math.floor(Math.random()*150+30)
     }
 
-      // 持续重繪
-      function animate() {
-           requestAnimationFrame(animate);
-           render();
-           controls.update();
-     }
-    </script>
-  </body>
+    // 第三邊
+    function calcHypotenuse(a, b) {
+      return (Math.sqrt((a * a) + (b * b)));
+    }
+
+</script>
+</body>
 </html>
