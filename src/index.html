@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- ios10以下禁止雙擊縮放 -->
     <meta
       content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
       id="viewport"
       name="viewport"
     />
-    <title>threejs-Voxel_RabbitB</title>
+    <title>Tiger-Game</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jquery-toast-plugin/1.3.2/jquery.toast.min.css"
+      type="text/css"
+    />
     
     <style>
         body{
@@ -18,15 +24,17 @@
             overflow: hidden;
         }
 
-        #score,#seconds {
+        #seconds {
             width: 4rem;
             font-size: medium;
             border-radius: 0.2rem;
-            background: rgba(0, 0, 0, 0.3);
-            color: white;
             border: none;
-            padding-left: 0.5rem;
-            margin-top: 0.3rem;
+            padding: 5px;
+        }
+
+        #seconds,#startButton,#startMyButton{
+          background: rgba(0, 0, 0, 0.3);
+            color: white;
         }
     </style>
       <!-- <script  type="text/javascript"  src="./js/jquery-2.0.2.min.js"></script> -->
@@ -37,8 +45,9 @@
    <div id="three" style="position: relative; z-index:100;">
     <div style="display: flex; flex-direction: column; align-items: flex-end;  position: fixed; top: 10px; right: 2vw;  color: red;">
       <!-- <p style="border: 1px solid black; padding: 5px;">對象：<span id="name"></span></p> -->
-      <p id="seconds" style="border: 1px solid black; padding: 5px;">秒數：30</p>
+        <p id="seconds" style="border: 1px solid black; padding: 5px;">秒數：30</p>
         <button id="startButton" style="padding: 5px;width: 78px; border-radius: 10%;">背景音樂</button>
+        <button id="startMyButton"  style="padding: 5px;width: 78px; border-radius: 10%;">開啟權限</button>
       </div>
     </div>
   </div>
@@ -98,6 +107,26 @@
     let pageTimer = {};  // 计时器数组
     let mixers={}
     let startPostions={} //舊坐標
+
+    let isMobile=false;
+    let isPermission =false;
+ 
+    // ios10以上禁用雙指縮放
+     document.documentElement.addEventListener('touchstart', function (event) {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    }, false);
+
+    var lastTouchEnd = 0;
+    document.documentElement.addEventListener('touchend', function (event) {
+      var now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+     
 
     main();
     animate();
@@ -513,6 +542,41 @@
     // 第三邊
     function calcHypotenuse(a, b) {
       return (Math.sqrt((a * a) + (b * b)));
+    }
+
+    const startMyButton =document.getElementById('startMyButton')
+    startMyButton.onclick= async function(){
+        // feature detect
+        // if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        //     alert("有DeviceMotionEvent")
+        //    DeviceMotionEvent.requestPermission()
+        //     .then(permissionState => {
+        //         alert("permissionState",permissionState)
+        //         if (permissionState === 'granted') {
+        //          window.addEventListener('devicemotion', () => {});
+        //         }
+        //     })
+        //     .catch((err) => {console.log(err)});
+        // } else {
+        // // handle regular non iOS 13+ devices
+        //  controls.connect();
+        // }
+
+        // feature detect
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        //  alert("有DeviceOrientationEvent")
+         await  DeviceOrientationEvent.requestPermission()
+            .then(permissionState => {
+                    // alert(permissionState)
+                    if (permissionState === 'granted') {
+                        window.addEventListener('deviceorientation', () => {});
+                    }
+                })
+            .catch((err) => {console.log(err)});
+        } else {
+        // handle regular non iOS 13+ devices
+        }
+       
     }
 
 </script>
